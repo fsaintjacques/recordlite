@@ -1,0 +1,8 @@
+{
+  "name": "records",
+  "columns": [
+    {"name": "status", "expr": "json_extract(raw, '$.status')", "with_index": true},
+    {"name": "color", "expr": "json_extract(raw, '$.attrs.color')", "with_index": true},
+    {"name": "size", "expr": "json_extract(raw, '$.attrs.size')", "with_index": true}
+  ]
+}
