@@ -1,6 +1,6 @@
 # RecordLite
 
-RecordLite is a library (and executable) that helps maintaining SQLite tables
+RecordLite is a library (and executable) that declaratively maintains SQLite tables
 and views of semi-structured data (henceforth known as records). RecordLite is
 based on a hidden gem in Backtrace's [sqlite_protobuf](https://github.com/backtrace-labs/sqlite_protobuf/blob/141486b492ccf342cbba6fa40e076a8941afc839/proto_table/proto_table.c)
 library.
@@ -9,6 +9,9 @@ TLDR: RecordLite stores semi-structured records into SQLite table where one colu
 the raw payload (JSON or Protobuf) and define views with virtual columns from the
 raw column via extraction functions, e.g. [json_extract](https://www.sqlite.org/json1.html#jex) and
 [protobuf_extract](https://github.com/rgov/sqlite_protobuf#protobuf_extractprotobuf-type_name-path).
+Tell RecordLite what you want the view and its indexes to look like, and RecordLite
+spits out idempotent DDL statements to make that happen, for any initial state and
+with minimal churn.
 
 ## Installation
 
