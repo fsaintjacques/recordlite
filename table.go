@@ -23,7 +23,13 @@ type (
 
 	ViewDef struct {
 		// Name of the view. The raw sources's table will be named `${Name}_raw`.
-		Name    string
+		Name string
+
+		// Name of the identifier column, defaults to `id` if not specified.
+		IdColumnName string
+		// Type of the idetnfiier column, defaults to 'INTEGER' if not specified.
+		IdColumnType string
+
 		Columns []ColumnDef
 		// If enabled, the statements for the view's triggers will not be generated.
 		SkipTriggers bool `json:"skip_triggers"`
@@ -38,10 +44,29 @@ type (
 func CompileViewDef(def *ViewDef) (string, error) {
 	buf := bytes.NewBufferString("")
 	if err := root.Execute(buf, def); err != nil {
-		return "", fmt.Errorf("pbql: failed executing template: %w", err)
+		return "", fmt.Errorf("recordlite: failed executing template: %w", err)
 	}
 
 	return strings.Trim(buf.String(), "\n"), nil
+}
+
+const (
+	DefaultIdColumnName = "id"
+	DefaultIdColumnType = "INTEGER"
+)
+
+func (t *ViewDef) EffectiveIdColumnName() string {
+	if t.IdColumnName == "" {
+		return DefaultIdColumnName
+	}
+	return t.IdColumnName
+}
+
+func (t *ViewDef) EffectiveIdColumnType() string {
+	if t.IdColumnType == "" {
+		return DefaultIdColumnType
+	}
+	return t.IdColumnType
 }
 
 func (t *ViewDef) Table() string {
@@ -104,42 +129,22 @@ var (
 
 // Global definitions used by sub-templates.
 var rootTemplateStr = `
-BEGIN EXCLUSIVE;
-
 {{template "table" .}}
-
---
--- View
---
 
 {{template "view" .}}
 
 {{if not .SkipTriggers -}}
---
--- Triggers
---
-
--- The trigger helpers enable applications to write in the view and avoid
--- the writing in the raw table. The restriction is that they can only reference
--- the 'raw' column.
-
 {{template "triggers" .}}
-
 {{end -}}
-{{if not .SkipIndices -}}
---
--- Indices
---
 
+{{if not .SkipIndices -}}
 {{template "indices" . }}
 {{end -}}
-
-COMMIT;
 `
 
 var tableTemplateStr = `
 CREATE TABLE IF NOT EXISTS {{.Table}} (
-  id INTEGER PRIMARY KEY NOT NULL,
+  {{.EffectiveIdColumnName}} {{.EffectiveIdColumnType}} PRIMARY KEY NOT NULL,
   raw BLOB NOT NULL
 );
 `
@@ -149,7 +154,7 @@ var viewTemplateStr = `
 DROP VIEW IF EXISTS {{.View}};
 CREATE VIEW IF NOT EXISTS {{.View}} AS
 SELECT
-  id,
+  {{.EffectiveIdColumnName}},
   raw {{- if .Columns}},{{end}}
 {{range $index, $val := .Columns}}  {{last $index $nCols | .SelectExpr}}{{end -}}
 FROM {{.Table}};`
@@ -164,13 +169,13 @@ END;
 DROP TRIGGER IF EXISTS {{.View}}_update;
 CREATE TRIGGER IF NOT EXISTS {{.View}}_update INSTEAD OF UPDATE ON {{.View}}
 BEGIN
-  UPDATE {{.Table}} SET raw = NEW.raw WHERE id = OLD.id;
+  UPDATE {{.Table}} SET raw = NEW.raw WHERE {{.EffectiveIdColumnName}} = OLD.{{.EffectiveIdColumnName}};
 END;
 
 DROP TRIGGER IF EXISTS {{.View}}_delete;
 CREATE TRIGGER IF NOT EXISTS {{.View}}_delete INSTEAD OF DELETE ON {{.View}}
 BEGIN
-  DELETE FROM {{.Table}} WHERE id = OLD.id;
+  DELETE FROM {{.Table}} WHERE {{.EffectiveIdColumnName}} = OLD.{{.EffectiveIdColumnName}};
 END;
 `
 
