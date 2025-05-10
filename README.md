@@ -38,7 +38,7 @@ table's schema, only the dynamic views.
 ### How
 
 For a given table of records, RecordLite generates a companion view that exposes
-virtual columns of fields of interested defined by the user. The columns can be
+virtual columns of fields of interest defined by the user. The columns can be
 optionally indexed if they're often projected and/or used for filtering. The
 column are defined with a function extracting the data from the raw column
 (either JSON or Protobuf), note that this would also work for any type of
